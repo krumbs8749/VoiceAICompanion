@@ -6,7 +6,7 @@ export async function processWithGPT(transcription: string): Promise<string> {
       const response = await fetch('YOUR_GPT_API_ENDPOINT', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer YOUR_GPT_API_KEY',
+          'Authorization': 'Bearer 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',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

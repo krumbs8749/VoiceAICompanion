@@ -11,6 +11,7 @@ export default function ProfileScreen() {
   // Dummy toggle - for a real app, you might integrate a context provider for theme
   const toggleTheme = () => {
     setIsDark(!isDark);
+  
     // Save preference locally or via context/state management
   };
 

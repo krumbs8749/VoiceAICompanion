@@ -1,22 +1,26 @@
-// components/VoiceRecorder.tsx
-import React, { useState } from 'react';
-import { View, Text, Button, Alert, StyleSheet } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  Button,
+  StyleSheet,
+  Alert,
+  useColorScheme,
+} from 'react-native';
 import { Audio } from 'expo-av';
+import LiveWaveform from './LiveWaveform'; // Make sure path is correct
 
-interface VoiceRecorderProps {
-  onFinish: (audioUri: string) => void;
-}
-
-export default function VoiceRecorder({ onFinish }: VoiceRecorderProps) {
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+export default function VoiceRecorder({ onFinish }: { onFinish: (uri: string) => void }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
+  const colorScheme = useColorScheme();
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   const startRecording = async () => {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Microphone permission is needed to record audio.');
+        Alert.alert('Permission denied', 'Microphone access is required.');
         return;
       }
 
@@ -25,9 +29,10 @@ export default function VoiceRecorder({ onFinish }: VoiceRecorderProps) {
         playsInSilentModeIOS: true,
       });
 
-      const newRecording = new Audio.Recording();
-      await newRecording.prepareToRecordAsync({
-        // Settings for both Android and iOS:
+      const recording = new Audio.Recording();
+      recordingRef.current = recording;
+
+      await recording.prepareToRecordAsync({
         android: {
           extension: '.wav',
           outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_DEFAULT,
@@ -46,56 +51,80 @@ export default function VoiceRecorder({ onFinish }: VoiceRecorderProps) {
           linearPCMIsBigEndian: false,
           linearPCMIsFloat: false,
         },
+        web: {
+          mimeType: 'audio/webm',
+        },
+        isMeteringEnabled: true, // ✅ This is required!
       });
-      setRecording(newRecording);
+
+      await recording.startAsync();
       setIsRecording(true);
     } catch (error) {
-      console.error('Failed to start recording', error);
+      console.error('Error starting recording:', error);
     }
   };
 
   const stopRecording = async () => {
-    if (!recording) return;
+    if (!recordingRef.current) return;
     try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecordedUri(uri);
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
       setIsRecording(false);
-      setRecording(null);
-      if (uri && onFinish) {
-        onFinish(uri);
-      }
+      setRecordedUri(uri);
+      if (uri) onFinish(uri);
     } catch (error) {
-      console.error('Failed to stop recording', error);
+      console.error('Error stopping recording:', error);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.status}>
-        {isRecording ? 'Recording in progress...' : 'Press the button to start recording.'}
+    <View style={[styles.container, colorScheme === 'dark' && styles.containerDark]}>
+      <Text style={[styles.status, colorScheme === 'dark' && styles.statusDark]}>
+        {isRecording ? 'Recording...' : 'Tap to Start'}
       </Text>
+
+      {isRecording && (
+        <LiveWaveform recordingRef={recordingRef} isRecording={isRecording} />
+      )}
+
       <Button
         title={isRecording ? 'Stop Recording' : 'Start Recording'}
         onPress={isRecording ? stopRecording : startRecording}
+        color={colorScheme === 'dark' ? 'white' : 'black'}
       />
-      {recordedUri && <Text style={styles.uriText}>Recorded file: {recordedUri}</Text>}
+
+      {recordedUri && (
+        <Text style={[styles.uriText, colorScheme === 'dark' && styles.uriTextDark]}>
+          Saved: {recordedUri}
+        </Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  containerDark: {
+    backgroundColor: '#000',
   },
   status: {
     marginBottom: 20,
-    fontSize: 16,
+    fontSize: 18,
+    color: '#333',
+  },
+  statusDark: {
+    color: '#fff',
   },
   uriText: {
-    marginTop: 20,
+    marginTop: 16,
     fontSize: 12,
     color: 'gray',
+  },
+  uriTextDark: {
+    color: 'lightgray',
   },
 });
