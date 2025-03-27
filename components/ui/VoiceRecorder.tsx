@@ -88,6 +88,7 @@ export default function VoiceRecorder({ onFinish }: { onFinish: (uri: string) =>
       )}
 
       <Button
+        
         title={isRecording ? 'Stop Recording' : 'Start Recording'}
         onPress={isRecording ? stopRecording : startRecording}
         color={colorScheme === 'dark' ? 'white' : 'black'}

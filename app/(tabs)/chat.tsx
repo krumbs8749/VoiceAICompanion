@@ -1,81 +1,103 @@
-// app/(tabs)/chat.tsx
-import React, { useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import VoiceRecorder from '../../components/VoiceRecorder';
-import { sendAudioForTranscription } from '../../lib/STTHandler';
-import { processWithGPT } from '../../lib/GPTHandler';
-import { saveSession } from '../../lib/storage';
-import { useColorScheme } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function ChatScreen() {
-  const [gptResponse, setGptResponse] = useState('');
+import VoiceRecorder from '@/components/ui/VoiceRecorder';
+import { sendAudioForTranscription } from '@/lib/STTHandler';
+import { processWithGPT } from '@/lib/GPTHandler';
+import { saveSession } from '@/lib/storage';
+
+export default function YappingScreen() {
+  const [transcript, setTranscript] = useState(''); 
+  const [notes, setNotes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const colorScheme = useColorScheme();
 
-  const handleRecordingFinish = async (audioUri: string) => {
+  const handleRecordingFinish = async (uri: string) => {
     setLoading(true);
-    const transcription = await sendAudioForTranscription(audioUri);
-    const gptText = await processWithGPT(transcription);
-    setGptResponse(gptText);
-    
-    // Save the session (MVP using local storage)
-    const sessionData = {
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-      mode: 'chat',
-      transcription,
-      aiResponse: gptText,
-      notes: extractNotes(gptText), // Assume a helper that extracts bullet points
-    };
-    await saveSession(sessionData);
+    try {
+      // Get the transcription via Whisper API (forced to English, etc.)
+      const transcription = await sendAudioForTranscription(uri);
+      setTranscript(transcription);
 
+      // Process the transcription with GPT to extract key notes
+      const result = await processWithGPT(transcription);
+      setNotes(result.notes || []);
+
+      // Save session data (timestamp, transcription, notes)
+      const sessionData = {
+        timestamp: new Date().toISOString(),
+        transcription,
+        notes: result.notes || [],
+      };
+      await saveSession(sessionData);
+    } catch (err) {
+      console.error('Error processing conversation:', err);
+    }
     setLoading(false);
   };
 
   return (
-    <View style={[styles.container, colorScheme === 'dark' && styles.containerDark]}>
-      <VoiceRecorder onFinish={handleRecordingFinish} />
-      {loading ? (
-        <ActivityIndicator size="large" />
-      ) : (
-        <>
-          <Text style={[styles.title, colorScheme === 'dark' && styles.titleDark]}>AI Companion</Text>
-          <Text style={[styles.response, colorScheme === 'dark' && styles.responseDark]}>{gptResponse}</Text>
-        </>
-      )}
-    </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 80 }}>
+          {loading && <ActivityIndicator size="large" color="#00ccff" />}
+          {transcript !== '' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Your Transcript</Text>
+              <Text style={styles.transcript}>{transcript}</Text>
+            </View>
+          )}
+          {notes.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Key Notes</Text>
+              {notes.map((note, idx) => (
+                <Text key={idx} style={styles.noteItem}>• {note}</Text>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+
+        {/* VoiceRecorder captures your conversation */}
+        <VoiceRecorder onFinish={handleRecordingFinish} />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  containerDark: {
     backgroundColor: '#000',
   },
-  title: {
-    fontSize: 20,
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+    paddingBottom: '10%',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  section: {
+    marginBottom: 16,
+    backgroundColor: '#1a1a1a',
+    padding: 12,
+    borderRadius: 10,
+  },
+  sectionTitle: {
     fontWeight: 'bold',
-    marginVertical: 12,
-    color: '#333',
-  },
-  titleDark: {
-    color: '#fff',
-  },
-  response: {
+    marginBottom: 6,
     fontSize: 16,
-    color: '#555',
+    color: '#ffffff',
   },
-  responseDark: {
-    color: '#ccc',
+  transcript: {
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  noteItem: {
+    fontSize: 14,
+    marginBottom: 4,
+    color: '#ffffff',
   },
 });
-  
-// Dummy helper for note extraction (replace with your logic)
-const extractNotes = (gptText: string): string[] => {
-  // For example, split by newline or bullet point
-  return gptText.split('\n').filter((line) => line.trim() !== '');
-};

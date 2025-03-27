@@ -22,3 +22,11 @@ export const getSessions = async (): Promise<any[]> => {
     return [];
   }
 };
+
+export const clearSessions = async() => {
+  try {
+    await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify([]));
+  } catch (error) {
+    console.error('Error saving session:', error);
+  }
+}

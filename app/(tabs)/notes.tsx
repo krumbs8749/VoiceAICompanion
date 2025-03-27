@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { getSessions } from '../../lib/storage';
 import { useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotesScreen() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -28,14 +29,17 @@ export default function NotesScreen() {
   );
 
   return (
-    <View style={[styles.container, colorScheme === 'dark' && styles.containerDark]}>
-      <FlatList
-        data={sessions}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        ListEmptyComponent={<Text style={[styles.emptyText, colorScheme === 'dark' && styles.emptyTextDark]}>No sessions yet.</Text>}
-      />
-    </View>
+    <SafeAreaView style={{ flex:1 }}>
+      <View style={[styles.container, colorScheme === 'dark' && styles.containerDark]}>
+        <FlatList
+          data={sessions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          ListEmptyComponent={<Text style={[styles.emptyText, colorScheme === 'dark' && styles.emptyTextDark]}>No sessions yet.</Text>}
+        />
+      </View>
+    </SafeAreaView>
+    
   );
 }
 
